@@ -95,6 +95,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('searchtext', nargs='+', help='search text')
     parser.add_argument('-y', '--year',   nargs='?', help='year of release')
+    parser.add_argument('-t', '--tv',   action='store_true', help='search TV show')
     parser.add_argument('-d', '--debug',  action='store_true', dest="debug", help='active debug log')
     args = parser.parse_args()
 
@@ -113,42 +114,63 @@ def main():
         logging.critical('Empty API_KEY in config.ini')
         exit()
 
-    # Call TMDB search api to get movie list
-    url = "https://api.themoviedb.org/3/search/movie?query=" + '%20'.join(args.searchtext) + "&api_key=" + api_key
+    # Set search url for movie or tv
+    if args.tv is True:
+        searchType = 'tv'
+    else:
+        searchType = 'movie'
+
+    # Set search url
+    url = "https://api.themoviedb.org/3/search/" + searchType + '?api_key=' + api_key + '&query=' + '%20'.join(args.searchtext)
     if args.year is not None:
-        url += '&year=' + str(args.year)
-    movieList = GET(url)
-    logging.debug('movie list:\n' + str(movieList))
+        if searchType is 'tv':
+            url += '&first_air_date_year=' + str(args.year)
+        else:
+            url += '&year=' + str(args.year)
 
-    # Search each movie in movie list
-    for movie in movieList['results']:
-        # Call TMDB api movie api to get movie detail
-        movieData = GET('https://api.themoviedb.org/3/movie/' + str(movie['id']) + '?api_key=' + api_key)
+    # Call TMDB search api to get result list
+    resultList = GET(url)
+    logging.debug('result list:\n' + str(resultList))
 
-        imdbId = movieData['imdb_id']
+    # Search each movie/tv in list
+    for item in resultList['results']:
+        # Call TMDB api movie/tv api to get detail
+        itemData = GET('https://api.themoviedb.org/3/' + searchType + '/' + str(item['id']) + '?api_key=' + api_key)
+
+        imdbId = ''
+        if 'imdb_id' in itemData.keys():
+            imdbId = itemData['imdb_id']
         logging.debug('imdb id:\n' + str(imdbId))
 
-        movieLinks = 'https://www.themoviedb.org/movie/' + str(movie['id'])
-        imdbRating = ''
-        if imdbId:
-            movieGenre = getIMDBGenre(imdbId)
-            movieLinks += '\nhttp://www.imdb.com/title/' + imdbId
-            imdbRating = getIMDBRating(imdbId)
+        itemName = ''
+        if searchType == 'movie':
+            itemName = itemData['original_title']
+            itemDate = itemData['release_date']
+            itemTime = str(itemData['runtime'])
         else:
-            movieGenre = str(', '.join([g['name'] for g in movieData['genres']]))
+            itemName = itemData['original_name']
+            itemDate = itemData['first_air_date']
+            itemTime = str(itemData['episode_run_time'])
 
-        movieRating = 'TMDB: ' + str(movieData['vote_average']) + '(' + str(movieData['vote_count']) + ')'
-        if imdbRating:
-            movieRating += '\nIMDB: ' + imdbRating
+        itemRating = 'TMDB: ' + str(itemData['vote_average']) + '(' + str(itemData['vote_count']) + ')'
+        itemLinks = 'https://www.themoviedb.org/' + searchType + '/' + str(item['id'])
+        if imdbId:
+            itemGenre = getIMDBGenre(imdbId)
+            itemLinks += '\nhttp://www.imdb.com/title/' + imdbId
+            imdbRating = getIMDBRating(imdbId)
+            if imdbRating:
+                itemRating += '\nIMDB:' + imdbRating
+        else:
+            itemGenre = str(', '.join([g['name'] for g in itemData['genres']]))
 
         # Append results
         printResult.append([
-            movieData['original_title'],
-            movieData['release_date'],
-            movieGenre,
-            movieData['runtime'],
-            movieRating,
-            movieLinks
+            itemName,
+            itemDate,
+            itemGenre,
+            itemTime,
+            itemRating,
+            itemLinks
         ])
 
     # Print results in terminal
