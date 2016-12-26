@@ -129,14 +129,15 @@ def main():
         logging.debug('imdb id:\n' + str(imdbId))
 
         movieLinks = 'https://www.themoviedb.org/movie/' + str(movie['id'])
+        imdbRating = ''
         if imdbId:
             movieGenre = getIMDBGenre(imdbId)
             movieLinks += '\nhttp://www.imdb.com/title/' + imdbId
+            imdbRating = getIMDBRating(imdbId)
         else:
             movieGenre = str(', '.join([g['name'] for g in movieData['genres']]))
 
         movieRating = 'TMDB: ' + str(movieData['vote_average']) + '(' + str(movieData['vote_count']) + ')'
-        imdbRating = getIMDBRating(imdbId)
         if imdbRating:
             movieRating += '\nIMDB: ' + imdbRating
 
