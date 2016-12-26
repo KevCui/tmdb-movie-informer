@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import sys, os, json
+import logging
+import argparse
+import configparser
+
+# Import requests
+try:
+    import requests
+except ImportError:
+    print("It seams `requests` is not installed. Please pip install requests")
+    sys.exit(1)
+
+# Import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    print("It seams `BeautifulSoup` is not installed. Please pip install beautifulsoup4")
+    sys.exit(1)
+
+# Import texttable
+try:
+    import texttable
+except ImportError:
+    print("It seams `texttable` is not installed. Please pip install texttable")
+    sys.exit(1)
+
+def configLog(debug):
+    "Configure logging"
+    logfile = os.path.basename(__file__) + '.log' if debug == True else None
+    loglevel = logging.DEBUG if logfile is not None else None
+    logging.basicConfig(format='%(asctime)s [%(module)14s][%(levelname)8s] %(message)s', filename=logfile, level=loglevel)
+
+def printTable(list, width):
+    "Print content from list to a table"
+    if len(list) != 1:
+        if len(list) == 2:
+            print('Find 1 result\n')
+        else:
+            print('Find ' + str(len(list) - 1) + ' results\n')
+
+        table = texttable.Texttable()
+        table.set_cols_width(width)
+        table.add_rows(list)
+        print(table.draw())
+
+    else:
+        print('Nothing Found!')
+
+def getIMDBGenre(id):
+    "Fetch genre information from IMDB"
+    url = "http://www.imdb.com/title/" + id
+    logging.debug('imdb url:\n' + str(url))
+
+    genres = BeautifulSoup(requests.get(url).text, "lxml").find_all('span', {'class': 'itemprop', 'itemprop': 'genre'})
+    logging.debug('imdb genre:\n' + str(genres))
+
+    return ', '.join([genre.getText() for genre in genres])
+
+def getIMDBRating(id):
+    "Fetch rating information from IMDB"
+    url = "http://www.imdb.com/title/" + id
+    logging.debug('imdb url:\n' + str(url))
+
+    value = BeautifulSoup(requests.get(url).text, "lxml").find('div', {'class': 'ratingValue'})
+    logging.debug('imdb rating:\n' + str(value))
+
+    if value is not None:
+        return value.strong['title'].replace('based on ', '(').replace(' user ratings', ')')
+    return ""
+
+def GET(url):
+    "GET request call"
+    logging.debug('url:\n' + str(url))
+
+    response = requests.request("GET", url)
+    if response.status_code != 200:
+        logging.error(str(response.status_code) + ' ' + url)
+        exit()
+
+    logging.debug('response json:\n' + str(response.json()))
+
+    return response.json()
+
+def exit():
+    "Exit!"
+    logging.shutdown()
+    sys.exit(1)
+
+def main():
+    # Setup parameter
+    #   run script with -d, active debug mode (log file will be created)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('searchtext', nargs='+', help='search text')
+    parser.add_argument('-y', '--year',   nargs='?', help='year of release')
+    parser.add_argument('-d', '--debug',  action='store_true', dest="debug", help='active debug log')
+    args = parser.parse_args()
+
+    # Configure logging
+    configLog(args.debug)
+    logging.debug('args:\n' + str(args))
+
+    printResult = [['TITLE', 'DATE', 'GENRE', 'LENGTH', 'RATING', 'LINK']]
+    printColWidth = [15, 10, 10, 10, 15, 40]
+
+    # Read config.ini
+    config = configparser.ConfigParser()
+    config.readfp(open(os.path.dirname(__file__) + '/config.ini'))
+    api_key = config['USER']['API_KEY']
+    if not api_key:
+        logging.critical('Empty API_KEY in config.ini')
+        exit()
+
+    # Call TMDB search api to get movie list
+    url = "https://api.themoviedb.org/3/search/movie?query=" + '%20'.join(args.searchtext) + "&api_key=" + api_key
+    if args.year is not None:
+        url += '&year=' + str(args.year)
+    movieList = GET(url)
+    logging.debug('movie list:\n' + str(movieList))
+
+    # Search each movie in movie list
+    for movie in movieList['results']:
+        # Call TMDB api movie api to get movie detail
+        movieData = GET('https://api.themoviedb.org/3/movie/' + str(movie['id']) + '?api_key=' + api_key)
+
+        imdbId = movieData['imdb_id']
+        logging.debug('imdb id:\n' + str(imdbId))
+
+        movieLinks = 'https://www.themoviedb.org/movie/' + str(movie['id'])
+        if imdbId:
+            movieGenre = getIMDBGenre(imdbId)
+            movieLinks += '\nhttp://www.imdb.com/title/' + imdbId
+        else:
+            movieGenre = str(', '.join([g['name'] for g in movieData['genres']]))
+
+        movieRating = 'TMDB: ' + str(movieData['vote_average']) + '(' + str(movieData['vote_count']) + ')'
+        imdbRating = getIMDBRating(imdbId)
+        if imdbRating:
+            movieRating += '\nIMDB: ' + imdbRating
+
+        # Append results
+        printResult.append([
+            movieData['original_title'],
+            movieData['release_date'],
+            movieGenre,
+            movieData['runtime'],
+            movieRating,
+            movieLinks
+        ])
+
+    # Print results in terminal
+    printTable(printResult, printColWidth)
+
+if __name__ == '__main__':
+    main()
