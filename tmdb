@@ -159,7 +159,7 @@ def main():
             itemLinks += '\nhttp://www.imdb.com/title/' + imdbId
             imdbRating = getIMDBRating(imdbId)
             if imdbRating:
-                itemRating += '\nIMDB:' + imdbRating
+                itemRating += '\nIMDB: ' + imdbRating
         else:
             itemGenre = str(', '.join([g['name'] for g in itemData['genres']]))
 
