@@ -6,8 +6,8 @@ Tags: CLI, python, script
 created:  26 Dec 2016
 ---
 
-movie-informer
-==============
+tmdb-movie-informer
+===================
 
 Show movie or TV series information, using API from [TMDB](https://developers.themoviedb.org/3/). It's really fast but it needs to register an [API KEY](https://developers.themoviedb.org/3/getting-started) first. Then put API KEY inside **config.ini** file
 
