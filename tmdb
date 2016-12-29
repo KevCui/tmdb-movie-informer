@@ -141,8 +141,7 @@ def collectData(data):
     else:
         itemGenre = ''
 
-    #if itemDate is not None:
-        #logging.debug('collect data:\n' + '\n'.join([itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks]))
+    logging.debug('collect data:\n' + '\n'.join([itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks]))
     return [itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks]
 
 def main():
