@@ -189,18 +189,17 @@ def main():
 
     # Search each movie/tv in list
     for item in resultList['results']:
-        # Call TMDB api movie/tv api to get detail
-        itemData = GET(TMDB_API_URL + searchType + '/' + str(item['id']) + '?api_key=' + api_key)
-
+        #   movie or tv
         if args.season is None:
+            # Call TMDB movie/tv api to get detail
+            itemData = GET(TMDB_API_URL + searchType + '/' + str(item['id']) + '?api_key=' + api_key)
             printResult.append(collectData(itemData))
 
+        #   tv episode
         else:
-            url = TMDB_API_URL + 'tv/' + str(item['id']) + '/season/' + str(args.season) + '?api_key=' + api_key
-            seasonList = GET(url)
-            logging.debug('season list:\n' + str(seasonList))
-
-            for episode in seasonList['episodes']:
+            # Call TMDB season api to get detail
+            itemData = GET(TMDB_API_URL + 'tv/' + str(item['id']) + '/season/' + str(args.season) + '?api_key=' + api_key)
+            for episode in itemData['episodes']:
                 printResult.append(collectData(episode))
 
     # Print results in terminal
