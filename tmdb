@@ -116,7 +116,7 @@ def collectData(data):
     elif 'original_name' in data.keys():
         itemName = data['original_name']
         itemDate = data['first_air_date']
-        itemTime = str(data['episode_run_time'])
+        itemTime = str(data['episode_run_time']) + ' ' + str(data['number_of_seasons']) + 'S'
         itemLinks = TMDB_URL + 'tv/' + str(data['id'])
     # tv episode
     else:
@@ -141,8 +141,8 @@ def collectData(data):
     else:
         itemGenre = ''
 
-    logging.debug('collect data:\n' + str('\n'.join([itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks])))
-
+    #if itemDate is not None:
+        #logging.debug('collect data:\n' + '\n'.join([itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks]))
     return [itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks]
 
 def main():
@@ -171,7 +171,7 @@ def main():
         logging.critical('Empty API_KEY in config.ini')
         exit()
 
-    # Set search url for movie or tv
+    # Set search type for movie or tv
     if args.tv is True or args.season is not None:
         searchType = 'tv'
     else:
@@ -199,10 +199,11 @@ def main():
 
         #   tv episode
         else:
-            # Call TMDB season api to get detail
-            itemData = GET(TMDB_API_URL + 'tv/' + str(item['id']) + '/season/' + str(args.season) + '?api_key=' + api_key)
-            for episode in itemData['episodes']:
-                printResult.append(collectData(episode))
+            if item['first_air_date']:
+                # Call TMDB season api to get detail
+                itemData = GET(TMDB_API_URL + 'tv/' + str(item['id']) + '/season/' + str(args.season) + '?api_key=' + api_key)
+                for episode in itemData['episodes']:
+                    printResult.append(collectData(episode))
 
     # Print results in terminal
     printTable(printResult, printColWidth)
