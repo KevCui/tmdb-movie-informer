@@ -97,6 +97,8 @@ def exit():
 def collectData(data):
     "Collect data from Movie, TV and TV season"
 
+    logging.debug('data:\n' + str(data))
+
     # Initialize variables
     imdbId=itemName=itemDate=itemGenre=itemTime=itemRating=itemLinks=''
 
