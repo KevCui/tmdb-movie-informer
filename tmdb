@@ -27,6 +27,11 @@ except ImportError:
     print("It seams `texttable` is not installed. Please pip install texttable")
     sys.exit(1)
 
+# Define global variable
+TMDB_API_URL = 'https://api.themoviedb.org/3/'
+TMDB_URL = 'https://www.themoviedb.org/'
+IMDB_URL = 'http://www.imdb.com/title/'
+
 def configLog(debug):
     "Configure logging"
     logfile = os.path.basename(__file__) + '.log' if debug == True else None
@@ -51,7 +56,7 @@ def printTable(list, width):
 
 def getIMDBGenre(id):
     "Fetch genre information from IMDB"
-    url = "http://www.imdb.com/title/" + id
+    url = IMDB_URL + id
     logging.debug('imdb url:\n' + str(url))
 
     genres = BeautifulSoup(requests.get(url).text, "lxml").find_all('span', {'class': 'itemprop', 'itemprop': 'genre'})
@@ -61,7 +66,7 @@ def getIMDBGenre(id):
 
 def getIMDBRating(id):
     "Fetch rating information from IMDB"
-    url = "http://www.imdb.com/title/" + id
+    url = IMDB_URL + id
     logging.debug('imdb url:\n' + str(url))
 
     value = BeautifulSoup(requests.get(url).text, "lxml").find('div', {'class': 'ratingValue'})
@@ -89,13 +94,63 @@ def exit():
     logging.shutdown()
     sys.exit(1)
 
+def collectData(data):
+    "Collect data from Movie, TV and TV season"
+
+    # Initialize variables
+    imdbId=itemName=itemDate=itemGenre=itemTime=itemRating=itemLinks=''
+
+    #   itemName
+    #   itemDate
+    #   itemTime
+    #   itemLinks
+    # movie
+    if 'original_title' in data.keys():
+        itemName = data['original_title']
+        itemDate = data['release_date']
+        itemTime = str(data['runtime'])
+        itemLinks = TMDB_URL + 'movie/' + str(data['id'])
+    # tv
+    elif 'original_name' in data.keys():
+        itemName = data['original_name']
+        itemDate = data['first_air_date']
+        itemTime = str(data['episode_run_time'])
+        itemLinks = TMDB_URL + 'tv/' + str(data['id'])
+    # tv episode
+    else:
+        itemName = 'S' + str(data['season_number']) + 'E' + str(data['episode_number']) + ' ' + data['name']
+        itemDate = data['air_date']
+
+    #   itemRating
+    #   itemGenre
+    itemRating = 'TMDB: ' + str(data['vote_average']) + '(' + str(data['vote_count']) + ')'
+
+    if 'imdb_id' in data.keys():
+        imdbId = data['imdb_id']
+
+    if imdbId:
+        itemGenre = getIMDBGenre(imdbId)
+        itemLinks += '\n' + IMDB_URL + imdbId
+        imdbRating = getIMDBRating(imdbId)
+        if imdbRating:
+            itemRating += '\nIMDB: ' + imdbRating
+    elif 'genres' in data.keys():
+        itemGenre = str(', '.join([g['name'] for g in data['genres']]))
+    else:
+        itemGenre = ''
+
+    logging.debug('collect data:\n' + str('\n'.join([itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks])))
+
+    return [itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks]
+
 def main():
     # Setup parameter
     #   run script with -d, active debug mode (log file will be created)
     parser = argparse.ArgumentParser()
     parser.add_argument('searchtext', nargs='+', help='search text')
     parser.add_argument('-y', '--year',   nargs='?', help='year of release')
-    parser.add_argument('-t', '--tv',   action='store_true', help='search TV show')
+    parser.add_argument('-t', '--tv',   action='store_true', help='TV show')
+    parser.add_argument('-s', '--season',   nargs='?', help='TV season number')
     parser.add_argument('-d', '--debug',  action='store_true', dest="debug", help='active debug log')
     args = parser.parse_args()
 
@@ -115,13 +170,13 @@ def main():
         exit()
 
     # Set search url for movie or tv
-    if args.tv is True:
+    if args.tv is True or args.season is not None:
         searchType = 'tv'
     else:
         searchType = 'movie'
 
     # Set search url
-    url = "https://api.themoviedb.org/3/search/" + searchType + '?api_key=' + api_key + '&query=' + '%20'.join(args.searchtext)
+    url = TMDB_API_URL + 'search/' + searchType + '?api_key=' + api_key + '&query=' + '%20'.join(args.searchtext)
     if args.year is not None:
         if searchType is 'tv':
             url += '&first_air_date_year=' + str(args.year)
@@ -135,43 +190,18 @@ def main():
     # Search each movie/tv in list
     for item in resultList['results']:
         # Call TMDB api movie/tv api to get detail
-        itemData = GET('https://api.themoviedb.org/3/' + searchType + '/' + str(item['id']) + '?api_key=' + api_key)
+        itemData = GET(TMDB_API_URL + searchType + '/' + str(item['id']) + '?api_key=' + api_key)
 
-        imdbId = ''
-        if 'imdb_id' in itemData.keys():
-            imdbId = itemData['imdb_id']
-        logging.debug('imdb id:\n' + str(imdbId))
+        if args.season is None:
+            printResult.append(collectData(itemData))
 
-        itemName = ''
-        if searchType == 'movie':
-            itemName = itemData['original_title']
-            itemDate = itemData['release_date']
-            itemTime = str(itemData['runtime'])
         else:
-            itemName = itemData['original_name']
-            itemDate = itemData['first_air_date']
-            itemTime = str(itemData['episode_run_time'])
+            url = TMDB_API_URL + 'tv/' + str(item['id']) + '/season/' + str(args.season) + '?api_key=' + api_key
+            seasonList = GET(url)
+            logging.debug('season list:\n' + str(seasonList))
 
-        itemRating = 'TMDB: ' + str(itemData['vote_average']) + '(' + str(itemData['vote_count']) + ')'
-        itemLinks = 'https://www.themoviedb.org/' + searchType + '/' + str(item['id'])
-        if imdbId:
-            itemGenre = getIMDBGenre(imdbId)
-            itemLinks += '\nhttp://www.imdb.com/title/' + imdbId
-            imdbRating = getIMDBRating(imdbId)
-            if imdbRating:
-                itemRating += '\nIMDB: ' + imdbRating
-        else:
-            itemGenre = str(', '.join([g['name'] for g in itemData['genres']]))
-
-        # Append results
-        printResult.append([
-            itemName,
-            itemDate,
-            itemGenre,
-            itemTime,
-            itemRating,
-            itemLinks
-        ])
+            for episode in seasonList['episodes']:
+                printResult.append(collectData(episode))
 
     # Print results in terminal
     printTable(printResult, printColWidth)
