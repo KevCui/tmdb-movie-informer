@@ -117,19 +117,19 @@ def collectData(data):
     # movie
     if 'original_title' in data.keys():
         itemName = data['original_title']
-        itemDate = data['release_date']
+        itemDate = data['release_date'] or ''
         itemTime = str(data['runtime'])
         itemLinks = TMDB_URL + 'movie/' + str(data['id'])
     # tv
     elif 'original_name' in data.keys():
         itemName = data['original_name']
-        itemDate = data['first_air_date']
+        itemDate = data['first_air_date'] or ''
         itemTime = str(data['episode_run_time']) + ' ' + str(data['number_of_seasons']) + 'S'
         itemLinks = TMDB_URL + 'tv/' + str(data['id'])
     # tv episode
     else:
         itemName = 'S' + str(data['season_number']) + 'E' + str(data['episode_number']) + ' ' + data['name']
-        itemDate = data['air_date']
+        itemDate = data['air_date'] or ''
 
     #   itemRating
     #   itemGenre
