@@ -90,7 +90,6 @@ def GET(url):
     response = requests.request("GET", url)
     if response.status_code != 200:
         logging.error(str(response.status_code) + ' ' + url)
-        exit()
 
     logging.debug('response json:\n' + str(response.json()))
 
@@ -203,17 +202,18 @@ def main():
     for item in resultList['results']:
         #   movie or tv
         if args.season is None:
-            # Call TMDB movie/tv api to get detail
+            logging.debug('Fetch item id: ' + str(item['id']))
             itemData = GET(TMDB_API_URL + searchType + '/' + str(item['id']) + '?api_key=' + api_key)
             printResult.append(collectData(itemData))
 
         #   tv episode
         else:
             if item['first_air_date']:
-                # Call TMDB season api to get detail
+                logging.debug('Fetch TV item id: ' + str(item['id']))
                 itemData = GET(TMDB_API_URL + 'tv/' + str(item['id']) + '/season/' + str(args.season) + '?api_key=' + api_key)
-                for episode in itemData['episodes']:
-                    printResult.append(collectData(episode))
+                if 'episodes' in itemData.keys():
+                    for episode in itemData['episodes']:
+                        printResult.append(collectData(episode))
 
     # Print results in terminal
     printTable(printResult, printColWidth)
