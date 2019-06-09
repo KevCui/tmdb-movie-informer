@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys, os, json
+import sys
+import os
+import json
 import logging
 import argparse
 import configparser
@@ -32,11 +34,13 @@ TMDB_API_URL = 'https://api.themoviedb.org/3/'
 TMDB_URL = 'https://www.themoviedb.org/'
 IMDB_URL = 'http://www.imdb.com/title/'
 
+
 def configLog(debug):
     "Configure logging"
     logfile = os.path.basename(__file__) + '.log' if debug == True else None
     loglevel = logging.DEBUG if logfile is not None else None
     logging.basicConfig(format='%(asctime)s [%(module)14s][%(levelname)8s] %(message)s', filename=logfile, level=loglevel)
+
 
 def printTable(list, width):
     "Print content from list to a table"
@@ -54,6 +58,7 @@ def printTable(list, width):
     else:
         print('Nothing Found!')
 
+
 def getIMDBGenre(id):
     "Fetch genre information from IMDB"
     url = IMDB_URL + id
@@ -63,6 +68,7 @@ def getIMDBGenre(id):
     logging.debug('imdb genre:\n' + str(genres))
 
     return ', '.join([genre.getText() for genre in genres])
+
 
 def getIMDBRating(id):
     "Fetch rating information from IMDB"
@@ -75,6 +81,7 @@ def getIMDBRating(id):
     if value is not None:
         return value.strong['title'].replace('based on ', '(').replace(' user ratings', ')')
     return ""
+
 
 def GET(url):
     "GET request call"
@@ -89,10 +96,12 @@ def GET(url):
 
     return response.json()
 
+
 def exit():
     "Exit!"
     logging.shutdown()
     sys.exit(1)
+
 
 def collectData(data):
     "Collect data from Movie, TV and TV season"
@@ -100,7 +109,7 @@ def collectData(data):
     logging.debug('data:\n' + str(data))
 
     # Initialize variables
-    imdbId=itemName=itemDate=itemGenre=itemTime=itemRating=itemLinks=''
+    imdbId = itemName = itemDate = itemGenre = itemTime = itemRating = itemLinks = ''
 
     #   itemName
     #   itemDate
@@ -144,6 +153,7 @@ def collectData(data):
     logging.debug('collect data:\n' + '\n'.join([itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks]))
     return [itemName, itemDate, itemGenre, itemTime, itemRating, itemLinks]
 
+
 def main():
     # Setup parameter
     #   run script with -d, active debug mode (log file will be created)
@@ -164,7 +174,8 @@ def main():
 
     # Read config.ini
     config = configparser.ConfigParser()
-    config.readfp(open(os.path.dirname(__file__) + '/config.ini'))
+
+    config.read_file(open(os.path.dirname(__file__) + '/config.ini'))
     api_key = config['USER']['API_KEY']
     if not api_key:
         logging.critical('Empty API_KEY in config.ini')
@@ -206,6 +217,7 @@ def main():
 
     # Print results in terminal
     printTable(printResult, printColWidth)
+
 
 if __name__ == '__main__':
     main()
