@@ -90,6 +90,7 @@ def GET(url):
     response = requests.request("GET", url)
     if response.status_code != 200:
         logging.error(str(response.status_code) + ' ' + url)
+        sys.exit(1)
 
     logging.debug('response json:\n' + str(response.json()))
 
@@ -189,7 +190,7 @@ def main():
     # Set search url
     url = TMDB_API_URL + 'search/' + searchType + '?api_key=' + api_key + '&query=' + '%20'.join(args.searchtext)
     if args.year is not None:
-        if searchType is 'tv':
+        if searchType == 'tv':
             url += '&first_air_date_year=' + str(args.year)
         else:
             url += '&year=' + str(args.year)
